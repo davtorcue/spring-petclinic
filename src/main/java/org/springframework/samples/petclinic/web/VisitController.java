@@ -15,15 +15,20 @@
  */
 package org.springframework.samples.petclinic.web;
 
+import java.util.Collection;
 import java.util.Map;
 
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.samples.petclinic.model.Daycare;
 import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.service.PetService;
 import org.springframework.samples.petclinic.service.VetService;
+import org.springframework.samples.petclinic.service.VisitService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
@@ -39,10 +44,12 @@ import org.springframework.web.bind.annotation.*;
 public class VisitController {
 
 	private final PetService petService;
+	private final VisitService visitService;
 
 	@Autowired
-	public VisitController(PetService petService) {
+	public VisitController(PetService petService, VisitService visitService) {
 		this.petService = petService;
+		this.visitService = visitService;
 	}
 
 	@InitBinder
@@ -88,6 +95,20 @@ public class VisitController {
 	public String showVisits(@PathVariable int petId, Map<String, Object> model) {
 		model.put("visits", this.petService.findPetById(petId).getVisits());
 		return "visitList";
+	}
+	
+	@GetMapping(value = "/visits")
+	public String showVisitsList(Map<String, Object> model) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth.getAuthorities().stream().map(x -> x.getAuthority()).anyMatch(x -> x.equals("admin"))) {
+			Collection<Visit> results = this.visitService.findAll();
+			model.put("visits", results);
+		} else {
+			//Collection<Visit> results = this.visitService.findByUser(auth.getName());
+			//model.put("visits", results);
+		}
+		
+		return "visits/visitsList";
 	}
 
 }

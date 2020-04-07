@@ -3,6 +3,7 @@ package org.springframework.samples.petclinic.web;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Map;
@@ -12,8 +13,11 @@ import javax.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.samples.petclinic.model.Daycare;
 import org.springframework.samples.petclinic.model.Pet;
+import org.springframework.samples.petclinic.model.Training;
 import org.springframework.samples.petclinic.service.DaycareService;
 import org.springframework.samples.petclinic.service.PetService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.ui.ModelMap;
@@ -33,7 +37,7 @@ public class DaycareController {
 	private final DaycareService daycareService;
 	
 	@Autowired
-	public DaycareController(final PetService petService,final DaycareService daycareService) {
+	public DaycareController(final PetService petService, DaycareService daycareService) {
 		this.petService = petService;
 		this.daycareService = daycareService;
 	}
@@ -138,5 +142,19 @@ public class DaycareController {
 		ModelAndView mav = new ModelAndView("daycares/daycareDetails");
 		mav.addObject(this.daycareService.findDaycareById(daycareId));
 		return mav;
+	}
+	
+	@GetMapping(value = "/daycares")
+	public String showDaycaresList(Map<String, Object> model) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth.getAuthorities().stream().map(x -> x.getAuthority()).anyMatch(x -> x.equals("admin"))) {
+			Collection<Daycare> results = this.daycareService.findAll();
+			model.put("daycares", results);
+		} else {
+			//Collection<Daycare> results = this.daycareService.findByUser(auth.getName());
+			//model.put("daycares", results);
+		}
+		
+		return "daycares/daycaresList";
 	}
 }

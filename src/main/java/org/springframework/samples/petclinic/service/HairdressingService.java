@@ -1,6 +1,7 @@
 package org.springframework.samples.petclinic.service;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,8 +26,8 @@ public class HairdressingService {
 	}	
 	
 	@Transactional
-	public Iterable<Hairdressing> findAll() {
-		return hairdressingRepo.findAll();
+	public Collection<Hairdressing> findAll() {
+		return (Collection<Hairdressing>)hairdressingRepo.findAll();
 	}
 	
 	@Transactional(readOnly=true)

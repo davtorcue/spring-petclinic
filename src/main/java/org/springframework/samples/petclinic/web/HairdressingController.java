@@ -10,6 +10,7 @@ import java.util.Optional;
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.samples.petclinic.model.Daycare;
 import org.springframework.samples.petclinic.model.Hairdressing;
 import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.PetType;
@@ -17,6 +18,8 @@ import org.springframework.samples.petclinic.model.TipoCuidado;
 import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.service.HairdressingService;
 import org.springframework.samples.petclinic.service.PetService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
@@ -60,67 +63,6 @@ public class HairdressingController {
 		return res;
 	}
 	
-//	@ModelAttribute("mascotas")
-//	public List<Integer> populateMascotas() {
-//		List<Integer> res = new ArrayList<Integer>();
-//		res.add(petService.findPetById(1).getId());
-//		res.add(petService.findPetById(2).getId());
-//		return res;
-//	}
-//		
-//	@GetMapping("/list")
-//	public String listHairdressingAppointments(ModelMap modelMap) {
-//		String vista = "hairdressing/listHairdressings";
-//		Iterable<Hairdressing> hairdressings = hairdressingService.findAll();
-//		modelMap.addAttribute("hairdressings", hairdressings);
-//		return vista;
-//	}
-//	
-//	@GetMapping(path="/new")
-//	public String crearAppointment(ModelMap modelMap) {
-//		String view = "hairdressing/editHairdressing";
-//		modelMap.addAttribute("hairdressing", new Hairdressing());
-//		return view;
-//	}
-//	
-//	@PostMapping(path = "/save")
-//	public String salvarHairdressing(@Valid Hairdressing hairdressing, BindingResult result, ModelMap modelMap) {
-//		String view = "/hairdressing/listHairdressings";
-//		System.out.println("\n\n\n\n" + hairdressing + "\n\n\n\n");
-//		if(result.hasErrors()) {
-//			return "hairdressing/editHairdressing";
-//		}else {
-//			
-//			hairdressingService.save(hairdressing);
-////			modelMap.addAttribute("message", "Appointment succesfully saved!");
-////			view = listHairdressingAppointments(modelMap);
-//			return view;
-//		}
-//		
-//	}
-	
-//	@GetMapping(path="/delete/{hairdressingId}")
-//	public String borrarHairdressing(@PathVariable("hairdressingId") int hairdressingId, ModelMap modelMap) {
-//		String view = "hairdressing/listHairdressings";
-//		Optional<Hairdressing> hairdressing = hairdressingService.findHairdressingById(hairdressingId);
-//		if(hairdressing.isPresent()) {
-//			hairdressingService.delete(hairdressing.get());
-//			modelMap.addAttribute("message", "Appointment succesfully deleted!");
-//		}else {
-//			modelMap.addAttribute("message", "Event not found!");
-//		}
-//		
-//		return this.listHairdressingAppointments(modelMap);
-//	}
-	
-	//@ModelAttribute("hairdressing")
-	//public Hairdressing loadPetWithHairdressing(@PathVariable("petId") int petId) {
-		//Pet pet = this.petService.findPetById(petId);
-		//Hairdressing hairdressing = new Hairdressing();
-		//pet.addHairdressing(hairdressing);
-		//return hairdressing;
-	//}
-	
 	@InitBinder("hairdressing")
 	public void initHairdressingBinder(WebDataBinder dataBinder) {
 		dataBinder.setValidator(new HairdressingValidator());
@@ -156,13 +98,6 @@ public class HairdressingController {
 			}
 		}
 	}
-
-//	@GetMapping(value = "/owners/*/pets/{petId}/hairdressings")
-//	public String showHairdressings(@PathVariable int petId, Map<String, Object> model) {
-//		model.put("hairdressings", this.petService.findPetById(petId).getHairdressings());
-//		
-//		return "hairdressingList";
-//	}
 	
 	@GetMapping(value = "/owners/{ownerId}/pets/{petId}/hairdressing/{hairdressingId}/delete")
 	public String deleteHairdressing(@PathVariable("ownerId") int ownerId, @PathVariable int hairdressingId) {
@@ -174,6 +109,20 @@ public class HairdressingController {
 			hairdressingService.delete(hairdressingId);
 			return "redirect:/owners/"+ ownerId;
 		}
+	}
+	
+	@GetMapping(value = "/hairdressings")
+	public String showHairdressingsList(Map<String, Object> model) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth.getAuthorities().stream().map(x -> x.getAuthority()).anyMatch(x -> x.equals("admin"))) {
+			Collection<Hairdressing> results = this.hairdressingService.findAll();
+			model.put("hairdressings", results);
+		} else {
+			//Collection<Hairdressing> results = this.hairdressingService.findByUser(auth.getName());
+			//model.put("hairdressings", results);
+		}
+		
+		return "hairdressings/hairdressingsList";
 	}
 	
 }

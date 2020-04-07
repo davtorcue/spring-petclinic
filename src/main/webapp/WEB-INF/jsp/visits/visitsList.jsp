@@ -7,10 +7,10 @@
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="petclinic" tagdir="/WEB-INF/tags" %>
 
-<petclinic:layout pageName="daycares">
-    <h2>Daycares</h2>
+<petclinic:layout pageName="visits">
+    <h2>Visits</h2>
     
-    <table id="daycareTable" class="table table-striped">
+    <table id="visitTable" class="table table-striped">
         <thead>
         <tr>
             
@@ -20,19 +20,19 @@
         </tr>
         </thead>
         <tbody>
-        <c:forEach items="${daycares}" var="daycare">
+        <c:forEach items="${visits}" var="visit">
             <tr>
             	<td>
-                	<petclinic:localDate date="${daycare.date}" pattern="yyyy-MM-dd"/>
+                	<petclinic:localDate date="${visit.date}" pattern="yyyy-MM-dd"/>
                	</td>
                 <td>
-                    <c:out value="${daycare.cuidado}"/>
+                    <c:out value="${visit.cuidado}"/>
                 </td>
                 <td>
-                    <spring:url value="/daycare/delete/{daycareId}" var="daycareDeleteUrl">
-                        <spring:param name="daycareId" value="${daycare.id}"/>
+                    <spring:url value="/visit/delete/{visitId}" var="visitDeleteUrl">
+                        <spring:param name="visitId" value="${visit.id}"/>
                     </spring:url>
-                    <a href="${fn:escapeXml(daycareDeleteUrl)}">Delete</a>
+                    <a href="${fn:escapeXml(visitDeleteUrl)}">Delete</a>
                 </td>
             </tr>
         </c:forEach>
