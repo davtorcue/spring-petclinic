@@ -436,7 +436,7 @@ public class TrainingControllerE2ETests {
 				.andExpect(view().name("redirect:/trainings"));
 	}
 	
-	@WithMockUser(username = "george", authorities = {"admin"})
+	@WithMockUser(username = "george", authorities = {"owner"})
 	@Test
 	void testProcessDeleteFormUnauthorized() throws Exception {
 		mockMvc.perform(get("/trainings/{trainingId}/delete", TEST_TRAINING_ID)
