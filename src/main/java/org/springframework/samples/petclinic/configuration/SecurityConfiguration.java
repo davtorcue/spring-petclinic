@@ -31,20 +31,32 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	DataSource dataSource;
 	
 	@Override
-	protected void configure(HttpSecurity http) throws Exception {
+	protected void configure(HttpSecurity http) throws Exception {	
 		http.authorizeRequests()
 				.antMatchers("/resources/**","/webjars/**","/h2-console/**").permitAll()
 				.antMatchers(HttpMethod.GET, "/","/oups").permitAll()
 				.antMatchers("/users/new").permitAll()
-				.antMatchers("/hairdressing").permitAll()
-				.antMatchers("/hairdressing/**").hasAnyAuthority("admin")
+				.antMatchers("/hairdressings/new").hasAnyAuthority("owner")
+				.antMatchers("/hairdressings/**/edit").hasAnyAuthority("owner")
+				.antMatchers("/hairdressings/**").hasAnyAuthority("admin", "owner")
 				.antMatchers("/owners/new").permitAll()
+				.antMatchers("/profile").hasAnyAuthority("owner")
 				.antMatchers("/admin/**").hasAnyAuthority("admin")
-				.antMatchers("/owners/**").hasAnyAuthority("owner","admin")				
+				.antMatchers("/owners/**").authenticated()	
 				.antMatchers("/vets/**").authenticated()
-				.antMatchers("/trainers/**").hasAnyAuthority("admin", "owner")
-				.antMatchers("/daycare/**").hasAnyAuthority("admin")
-				.antMatchers("/trainings/**").hasAnyAuthority("owner", "admin")
+				.antMatchers("/trainers/**").authenticated()	
+				.antMatchers("/carers/**").authenticated()	
+				.antMatchers("/daycares/new").hasAnyAuthority("owner")
+				.antMatchers("/daycares/**/edit").hasAnyAuthority("owner")
+				.antMatchers("/daycares/**").authenticated()	
+				.antMatchers("/trainings").hasAnyAuthority("admin")	
+				.antMatchers("/trainings/*/edit").hasAnyAuthority("owner")	
+				.antMatchers("/trainings/new").hasAnyAuthority("owner")	
+				.antMatchers("/trainings/**").authenticated()
+				.antMatchers("/reviews").authenticated()	
+				.antMatchers("/reviews/new").hasAnyAuthority("owner")
+				.antMatchers("/reviews/**/delete").hasAnyAuthority("admin")
+				.antMatchers("/profile").permitAll()
 				.anyRequest().denyAll()
 				.and()
 				 	.formLogin()
@@ -52,7 +64,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 				 	.failureUrl("/login-error")
 				.and()
 					.logout()
-						.logoutSuccessUrl("/"); 
+						.logoutSuccessUrl("/");
                 // Configuración para que funcione la consola de administración 
                 // de la BD H2 (deshabilitar las cabeceras de protección contra
                 // ataques de tipo csrf y habilitar los framesets si su contenido
@@ -70,10 +82,11 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	        + "from users "
 	        + "where username = ?")
 	      .authoritiesByUsernameQuery(
-	       "select username, authority "
-	        + "from authorities "
-	        + "where username = ?")	      	      
-	      .passwordEncoder(passwordEncoder());	
+	       "select au.user_username as username, auth.authority as authority "
+	        + "from authorities auth "
+	        + "inner join authorities_users au on au.authorities_id = auth.id "
+	        + "where au.user_username = ?")	      	      
+	      .passwordEncoder(passwordEncoder());
 	}
 	
 	@Bean

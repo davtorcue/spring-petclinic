@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 import javax.validation.Valid;
@@ -15,12 +16,17 @@ import org.springframework.samples.petclinic.model.GroundType;
 import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.Trainer;
 import org.springframework.samples.petclinic.model.Training;
+import org.springframework.samples.petclinic.service.AuthorizationService;
 import org.springframework.samples.petclinic.service.PetService;
 import org.springframework.samples.petclinic.service.TrainerService;
 import org.springframework.samples.petclinic.service.TrainingService;
 import org.springframework.samples.petclinic.service.exceptions.BusinessException;
 import org.springframework.samples.petclinic.service.exceptions.MappingException;
 import org.springframework.samples.petclinic.util.TrainingDTO;
+import org.springframework.samples.petclinic.web.annotations.IsAdmin;
+import org.springframework.samples.petclinic.web.annotations.IsAuthenticated;
+import org.springframework.samples.petclinic.web.annotations.IsOwner;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,20 +41,24 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.ModelAndView;
 
+@IsAuthenticated
 @Controller
 public class TrainingController {
 	
 	private static final String VIEWS_TRAINING_CREATE_OR_UPDATE_FORM = "trainings/createOrUpdateTrainingForm";
+	private static final String UNAUTHORIZED = "errors/accessDenied";
 	
 	private final PetService petService;
 	private final TrainingService trainingService;
 	private final TrainerService trainerService;
+	private final AuthorizationService authorizationService;
 	
 	@Autowired
-	public TrainingController(TrainingService trainingService, PetService petService, TrainerService trainerService) {
+	public TrainingController(TrainingService trainingService, PetService petService, TrainerService trainerService, AuthorizationService authorizationService) {
 		this.trainingService = trainingService;
 		this.petService = petService;
 		this.trainerService = trainerService;
+		this.authorizationService = authorizationService;
 	}
 	
 	@ModelAttribute("trainers")
@@ -113,12 +123,13 @@ public class TrainingController {
 	public String initUpdateTrainingForm(@PathVariable("trainingId") int trainingId, Model model) {
 		
 		Training training = this.trainingService.findTrainingById(trainingId);
+		this.authorizeUserAction(training.getPet().getId());
 		
 		TrainingDTO trainingDTO = this.convertToDto(training);
 		
 		model.addAttribute("boton", false);
 		model.addAttribute(trainingDTO);
-		//meter que el atributo "new" sea false, en la variable training
+		
 		return VIEWS_TRAINING_CREATE_OR_UPDATE_FORM;
 	}
 
@@ -128,6 +139,8 @@ public class TrainingController {
 			return VIEWS_TRAINING_CREATE_OR_UPDATE_FORM;
 		}
 		else {
+			Training oldTraining = this.trainingService.findTrainingById(trainingId);
+
 			Training training;
 			
 			try {
@@ -137,6 +150,8 @@ public class TrainingController {
 				result.rejectValue(ex.getEntity(), ex.getError(), ex.getMessage());
 	            return VIEWS_TRAINING_CREATE_OR_UPDATE_FORM;
 			}
+			
+			this.authorizeUserAction(training.getPet().getId());
 						
 			try {
 				this.trainingService.saveTraining(training);
@@ -152,46 +167,59 @@ public class TrainingController {
 	@GetMapping("/trainings/{trainingId}")
 	public ModelAndView showTraining(@PathVariable("trainingId") int trainingId) {
 		ModelAndView mav = new ModelAndView("trainings/trainingDetails");
-		mav.addObject(this.trainingService.findTrainingById(trainingId));
+		Training training = trainingService.findTrainingById(trainingId);
+		authorizeUserAction(training.getPet().getId());
+		mav.addObject(training);
 		return mav;
 	}
 	
+	@IsAdmin
 	@GetMapping(value = "/trainings")
 	public String showTrainingsList(Map<String, Object> model) {
+		Collection<Training> results = this.trainingService.findTrainings();
+		model.put("trainings", results);
+		
+		return "trainings/trainingsList";
+	}
+	
+	@IsOwner
+	@GetMapping(value = "/trainings/owner")
+	public String showOwnerTrainingsList(Map<String, Object> model) {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-		if (auth.getAuthorities().stream().map(x -> x.getAuthority()).anyMatch(x -> x.equals("admin"))) {
-			Collection<Training> results = this.trainingService.findTrainings();
-			model.put("trainings", results);
-		} else {
-			Collection<Training> results = this.trainingService.findTrainingsByUser(auth.getName());
-			model.put("trainings", results);
-		}
+		Collection<Training> results = this.trainingService.findTrainingsByUser(auth.getName());
+		model.put("trainings", results);
 		
 		return "trainings/trainingsList";
 	}
 	
 	@GetMapping(value = "/trainings/{trainingId}/delete")
 	public String processDeleteTrainingForm(@PathVariable("trainingId") int trainingId) {
+		Training training = this.trainingService.findTrainingById(trainingId);
+		this.authorizeUserAction(training.getPet().getId());
 		this.trainingService.delete(trainingId);
-		return "redirect:/trainings";
+		
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth.getAuthorities().stream().map(x -> x.getAuthority()).anyMatch(x -> x.equals("admin"))) {
+			return "redirect:/trainings";
+		}
+		return "redirect:/trainings/owner";
 	}
 	
 	private Training convertToEntity(TrainingDTO dto) throws MappingException {
 		Training training = new Training();
 		
-		try {
-			String owner = SecurityContextHolder.getContext().getAuthentication().getName();
-			Pet pet = this.petService.findPetsByName(dto.getPetName(), owner);
-			training.setPet(pet);
-		} catch(DataAccessException e) {
-			throw new MappingException("pet", "Not existance", "Pet does not exist");
+		String owner = SecurityContextHolder.getContext().getAuthentication().getName();
+		Pet pet = this.petService.findPetsByName(dto.getPetName(), owner);
+		if (pet == null) {
+			throw new MappingException("petName", "Not existance", "Pet does not exist");
 		}
+		training.setPet(pet);
 		
 		try {
 			Trainer trainer = this.trainerService.findTrainerById(dto.getTrainerId());
 			training.setTrainer(trainer);
-		} catch(DataAccessException e) {
-			throw new MappingException("trainer", "Not existance", "Trainer does not exist");
+		} catch(NoSuchElementException e) {
+			throw new MappingException("trainerId", "Not existance", "Trainer does not exist");
 		}
 
 		training.setGround(dto.getGround());
@@ -211,5 +239,12 @@ public class TrainingController {
 		dto.setPetName(entity.getPet().getName());
 		dto.setTrainerId(entity.getTrainer().getId());
 		return dto;
+	}
+	
+	private void authorizeUserAction(int petId) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (!this.authorizationService.canUserModifyBooking(auth.getName(), petId)) {
+			throw new AccessDeniedException("User canot modify data.");
+		}
 	}
 }

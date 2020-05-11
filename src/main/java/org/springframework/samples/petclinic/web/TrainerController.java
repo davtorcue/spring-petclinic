@@ -8,7 +8,11 @@ import javax.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.samples.petclinic.model.Owner;
 import org.springframework.samples.petclinic.model.Trainer;
+import org.springframework.samples.petclinic.model.Training;
 import org.springframework.samples.petclinic.service.TrainerService;
+import org.springframework.samples.petclinic.service.TrainingService;
+import org.springframework.samples.petclinic.web.annotations.IsAdmin;
+import org.springframework.samples.petclinic.web.annotations.IsOwner;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
@@ -18,17 +22,21 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.ModelAndView;
 
+@IsAdmin
 @Controller
 public class TrainerController {
 	
 	private static final String VIEWS_TRAINER_CREATE_OR_UPDATE_FORM = "trainers/createOrUpdateTrainerForm";
-	
+
 	private final TrainerService trainerService;
+	private final TrainingService trainingService;
 	
 	@Autowired
-	public TrainerController(TrainerService trainerService) {
+	public TrainerController(TrainerService trainerService, TrainingService trainingService) {
 		this.trainerService = trainerService;
+		this.trainingService = trainingService;
 	}
+	
 	
 	@InitBinder
 	public void setAllowedFields(WebDataBinder dataBinder) {
@@ -63,9 +71,10 @@ public class TrainerController {
 	
 	@GetMapping(value = "/trainers")
 	public String initFindForm(Map<String, Object> model) {
-		model.put("trainer", new Trainer());
 		Collection<Trainer> results = this.trainerService.findTrainers();
 		model.put("trainers", results);
+		Trainer trainer = new Trainer();
+		model.put("trainer", trainer);
 		return "trainers/trainersList";
 	}
 	
@@ -73,7 +82,7 @@ public class TrainerController {
 	public String showTrainersList(Trainer trainer, BindingResult result, Map<String, Object> model) {
 		Collection<Trainer> results;
 		
-		if (trainer.getLastName().isEmpty()) {
+		if (trainer == null || trainer.getLastName() == null || trainer.getLastName().isEmpty()) {
 			results = this.trainerService.findTrainers();
 		} else {
 			results = this.trainerService.findTrainersByLastName(trainer.getLastName());
@@ -81,6 +90,14 @@ public class TrainerController {
 
 		model.put("trainers", results);
 		return "trainers/trainersList";
+	}
+	
+	@GetMapping(value = "/trainers/{trainerId}/trainings")
+	public String showTrainerTrainingsList(@PathVariable("trainerId") int trainerId, Map<String, Object> model) {
+		Trainer trainer = this.trainerService.findTrainerById(trainerId);
+		Collection<Training> results = this.trainingService.findTrainingsByTrainer(trainerId);
+		model.put("trainings", results);
+		return "trainings/trainingsList";
 	}
 	
 }

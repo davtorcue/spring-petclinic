@@ -20,9 +20,11 @@ import java.util.Collection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
+import org.springframework.samples.petclinic.model.Authorities;
 import org.springframework.samples.petclinic.model.Owner;
 import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.PetType;
+import org.springframework.samples.petclinic.model.User;
 import org.springframework.samples.petclinic.model.Vet;
 import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
@@ -60,6 +62,11 @@ public class OwnerService {
 	public Owner findOwnerById(int id) throws DataAccessException {
 		return ownerRepository.findById(id);
 	}
+	
+	@Transactional(readOnly = true)
+	public Owner findOwnerByUsername(String username) throws DataAccessException {
+		return ownerRepository.findByUsername(username);
+	}
 
 	@Transactional(readOnly = true)
 	public Collection<Owner> findOwnerByLastName(String lastName) throws DataAccessException {
@@ -69,11 +76,23 @@ public class OwnerService {
 	@Transactional
 	public void saveOwner(Owner owner) throws DataAccessException {
 		//creating owner
+
 		ownerRepository.save(owner);		
 		//creating user
-		userService.saveUser(owner.getUser());
-		//creating authorities
-		authoritiesService.saveAuthorities(owner.getUser().getUsername(), "owner");
-	}		
+		Authorities auth = this.authoritiesService.findByAuthority("owner");
+		User user = owner.getUser();
+		user.addAuthority(auth);
+		userService.saveUser(user);
 
+	}
+	
+	@Transactional
+	public void updateOwner(Owner owner) throws DataAccessException {
+		Owner oldOwner = this.findOwnerById(owner.getId());
+		owner.getUser().setUsername(oldOwner.getUser().getUsername());
+		ownerRepository.save(owner);
+		System.out.println(owner.getId());
+		System.out.println(owner.getUser().getUsername());
+		// userService.saveUser(owner.getUser());
+	}
 }
