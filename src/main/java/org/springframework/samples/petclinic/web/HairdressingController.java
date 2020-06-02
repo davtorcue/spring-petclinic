@@ -288,6 +288,8 @@ public class HairdressingController {
 	private HairdressingDTO convertToDto(Hairdressing entity) {
 		HairdressingDTO dto = new HairdressingDTO();
 		dto.setDate(entity.getDate());
+		dto.setTime(entity.getTime());
+		dto.setCuidado(entity.getCuidado());
 		dto.setDescription(entity.getDescription());
 		dto.setPetName(entity.getPet().getName());
 
