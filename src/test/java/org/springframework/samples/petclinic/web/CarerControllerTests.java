@@ -197,7 +197,7 @@ private static final int TEST_CARER_ID = 1;
 	
 	@WithMockUser(value = "spring")
 	@Test
-	void testShowAllEmptyTrainersList() throws Exception {
+	void testShowAllEmptyCarersList() throws Exception {
 		given(this.carerService.findCarers()).willReturn(Lists.newArrayList());
 		
 		mockMvc.perform(get("/carers/find"))
